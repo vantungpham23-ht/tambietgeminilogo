@@ -38,6 +38,13 @@ jobs:
         with:
           path: './dist'
 
+      - name: Overwrite index for GitHub Pages
+        run: |
+          # Remove README from dist to prevent GitHub Pages preferring it
+          rm -f dist/README.md dist/README_zh.md 2>/dev/null || true
+          # Ensure index.html exists
+          ls -la dist/index.html
+
   deploy:
     environment:
       name: github-pages
