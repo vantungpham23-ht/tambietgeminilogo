@@ -33,17 +33,15 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Remove README files
+        run: |
+          rm -f dist/README.md dist/README_zh.md dist/DEPLOY_*.md 2>/dev/null || true
+          ls -la dist/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
-
-      - name: Overwrite index for GitHub Pages
-        run: |
-          # Remove README from dist to prevent GitHub Pages preferring it
-          rm -f dist/README.md dist/README_zh.md 2>/dev/null || true
-          # Ensure index.html exists
-          ls -la dist/index.html
 
   deploy:
     environment:
@@ -52,6 +50,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: ./www
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
