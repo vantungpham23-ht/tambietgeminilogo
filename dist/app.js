@@ -1,5 +1,5 @@
 /*!
- * @pilio/gemini-watermark-remover v1.0.41+56762d3
+ * @pilio/gemini-watermark-remover v1.0.41+daf988d
  * Automatically removes watermarks from Gemini AI generated images
  * (c) 2026 GargantuaX
  * https://github.com/GargantuaX/gemini-watermark-remover

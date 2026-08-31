@@ -147,6 +147,10 @@ function copyExtensionStaticAssets(outputDir = EXTENSION_DIR) {
 
 function cleanDistBuildOutputs() {
   if (!existsSync('dist')) return;
+  // Clean onnxruntime separately to handle WASM file size limits
+  if (existsSync('dist/onnxruntime')) {
+    rmSync('dist/onnxruntime', { recursive: true });
+  }
   for (const entry of [
     'app.js',
     'dev-preview.html',
