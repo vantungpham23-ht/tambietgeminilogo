@@ -1,0 +1,111 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm/
+
+# Build outputs
+dist/
+build/
+*.tgz
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Build artifacts
+*.egg-info/
+dist_*/
+*.spec.js
+
+# Debug
+.npm
+.eslintcache
+.node_repl_history
+
+# Optional npm cache
+.npm
+
+# Optional pnpm store
+.pnpm
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# Optional Skiasharp prebuilds
+.prebuilds/
+
+# Test results
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Artifacts
+.artifacts/
+public/models/
+*.zip
+*.tar.gz
+
+# Cloudflare
+.cloudflare/
+
+# Debug
+*.map
+*.tsbuildinfo
+
+# Lock files (if needed)
+# pnpm-lock.yaml
+# package-lock.json
+# yarn.lock
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Node
+_node_modules/
+lib/
