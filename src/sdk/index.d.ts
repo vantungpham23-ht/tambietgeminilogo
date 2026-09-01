@@ -189,3 +189,124 @@ export function calculateWatermarkPosition(
     config: WatermarkConfig
 ): WatermarkPosition;
 export function removeRepeatedWatermarkLayers(...args: unknown[]): unknown;
+
+// ============================================
+// Upscaler Types
+// ============================================
+
+export enum UpscaleQuality {
+    LOW = 'low',
+    MEDIUM = 'medium',
+    HIGH = 'high'
+}
+
+export enum UpscaleScale {
+    X2 = 2,
+    X4 = 4,
+    X8 = 8
+}
+
+export enum UpscaleMode {
+    CANVAS = 'canvas',
+    AI = 'ai'
+}
+
+export enum AIUpscaleModel {
+    REAL_ESRGAN_X2 = 'RealESRGAN_x2plus',
+    REAL_ESRGAN_X4 = 'RealESRGAN_x4plus',
+    SWIN2SR_X2 = 'Swin2SR_SRx2_Compact'
+}
+
+export interface UpscaleOptions {
+    mode?: 'canvas' | 'ai';
+    scale?: number;
+    quality?: 'low' | 'medium' | 'high';
+    modelType?: AIUpscaleModel;
+    modelUrl?: string;
+    modelBytes?: Uint8Array;
+    onProgress?: (current: number, total: number, info?: string) => void;
+    onFrame?: (frameIndex: number, imageData: ImageDataLike) => void;
+}
+
+export interface UpscaleResult {
+    imageData: ImageDataLike;
+    blob: Blob;
+    width: number;
+    height: number;
+}
+
+export interface VideoUpscaleResult extends UpscaleResult {
+    duration: number;
+    originalWidth: number;
+    originalHeight: number;
+}
+
+export class AIUpscaler {
+    constructor(options?: Partial<{
+        modelType: AIUpscaleModel;
+        modelBytes: Uint8Array;
+        executionProvider: string;
+        numThreads: number | 'auto';
+    }>);
+    init(signal?: AbortSignal): Promise<void>;
+    upscale(imageData: ImageDataLike, signal?: AbortSignal): Promise<ImageDataLike>;
+    dispose(): void;
+}
+
+export function upscale(
+    input: ImageDataLike | Blob | File | HTMLImageElement | HTMLVideoElement,
+    options?: UpscaleOptions,
+    signal?: AbortSignal
+): Promise<UpscaleResult>;
+
+export function canvasUpscaleImage(
+    imageData: ImageDataLike,
+    scale?: number,
+    quality?: 'low' | 'medium' | 'high'
+): Promise<ImageDataLike>;
+
+export function canvasUpscaleElement(
+    source: HTMLImageElement | HTMLCanvasElement | OffscreenCanvas,
+    scale?: number,
+    quality?: 'low' | 'medium' | 'high'
+): Promise<ImageDataLike>;
+
+export function canvasUpscaleBlob(
+    blob: Blob,
+    scale?: number,
+    quality?: 'low' | 'medium' | 'high'
+): Promise<UpscaleResult>;
+
+export function upscaleVideo(
+    source: Blob | string | HTMLVideoElement,
+    options?: UpscaleOptions,
+    signal?: AbortSignal
+): Promise<VideoUpscaleResult>;
+
+export function extractVideoFrame(
+    source: Blob | string | HTMLVideoElement,
+    time?: number
+): Promise<Blob>;
+
+export function upscaleImageBatch(
+    images: ImageDataLike[],
+    options?: UpscaleOptions,
+    signal?: AbortSignal
+): Promise<ImageDataLike[]>;
+
+export function loadModel(
+    url: string,
+    onProgress?: (progress: number) => void,
+    signal?: AbortSignal
+): Promise<Uint8Array>;
+
+export function estimateUpscaleTime(
+    width: number,
+    height: number,
+    mode?: 'canvas' | 'ai',
+    scale?: number
+): number;
+
+export function isAISupported(): boolean;
+
+export function getRecommendedScale(width: number, height: number): number;

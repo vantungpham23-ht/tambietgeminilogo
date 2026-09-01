@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Upscale Demo · Tạm biệt Gemini Icon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --surface-2: #f5f5f4;
+      --line: #e7e5e4;
+      --line-strong: #d6d3d1;
+      --ink: #0a0a0a;
+      --ink-2: #404040;
+      --ink-3: #78716c;
+      --ink-4: #a8a29e;
+      --success: #059669;
+      --warning: #d97706;
+      --font-sans: 'Inter', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --r-sm: 10px;
+      --r-md: 14px;
+      --r-lg: 20px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header {
+      text-align: center;
+      padding: 32px 0;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    h1 span {
+      font-family: var(--font-mono);
+      background: linear-gradient(135deg, #18181b, #71717a);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .subtitle {
+      color: var(--ink-3);
+      font-size: 0.9375rem;
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--line-strong);
+      border-radius: var(--r-lg);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+      margin-bottom: 24px;
+    }
+    .upload-zone:hover, .upload-zone.dragging {
+      border-color: var(--ink);
+      background: var(--surface-2);
+    }
+    .upload-zone-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      background: var(--ink);
+      color: #fff;
+      border-radius: var(--r-md);
+      display: grid;
+      place-items: center;
+    }
+    .upload-zone h2 {
+      font-size: 1.125rem;
+      margin: 0 0 8px;
+    }
+    .upload-zone p {
+      color: var(--ink-3);
+      font-size: 0.875rem;
+      margin: 0;
+    }
+    .upload-zone input {
+      display: none;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 768px) {
+      .comparison {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .preview-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .preview-header {
+      padding: 12px 16px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .preview-header .badge {
+      font-size: 0.6875rem;
+      padding: 2px 8px;
+      background: var(--ink-3);
+      color: #fff;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+    .preview-canvas {
+      width: 100%;
+      background: #0a0a0a;
+      display: block;
+    }
+
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .control-group {
+      margin-bottom: 16px;
+    }
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    .control-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 0;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .radio-group input {
+      position: absolute;
+      opacity: 0;
+    }
+    .radio-group label {
+      flex: 1;
+      padding: 12px 16px;
+      text-align: center;
+      font-weight: 500;
+      font-size: 0.875rem;
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: all 0.15s var(--ease);
+    }
+    .radio-group label:not(:last-child) {
+      border-right: 1px solid var(--line);
+    }
+    .radio-group input:checked + label {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      font-size: 0.875rem;
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 24px;
+      border-radius: var(--r-md);
+      font-weight: 600;
+      font-size: 0.9375rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s var(--ease);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: var(--ink);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #262626;
+    }
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--line);
+    }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-success:hover:not(:disabled) {
+      background: #047857;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--ink);
+      width: 0%;
+      transition: width 0.3s var(--ease);
+    }
+    .progress-text {
+      font-size: 0.75rem;
+      color: var(--ink-3);
+      margin-top: 6px;
+    }
+
+    .status {
+      padding: 12px 16px;
+      border-radius: var(--r-md);
+      font-size: 0.875rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .status.info {
+      background: #eff6ff;
+      color: #1d4ed8;
+      display: block;
+    }
+    .status.success {
+      background: #ecfdf5;
+      color: #047857;
+      display: block;
+    }
+    .status.error {
+      background: #fef2f2;
+      color: #dc2626;
+      display: block;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 0;
+      border-top: 1px solid var(--line);
+      margin-top: 32px;
+    }
+    footer p {
+      color: var(--ink-3);
+      font-size: 0.8125rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>AI Upscale <span>Demo</span></h1>
+      <p class="subtitle">Tăng nét ảnh bằng Canvas hoặc Real-ESRGAN AI</p>
+    </header>
+
+    <div id="status" class="status"></div>
+
+    <div class="upload-zone" id="uploadZone">
+      <div class="upload-zone-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <h2>Chọn ảnh để upscale</h2>
+      <p>Kéo thả hoặc click để chọn file</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="comparison hidden" id="comparison">
+      <div class="preview-card">
+        <div class="preview-header">
+          Ảnh gốc
+          <span class="badge" id="originalSize">-</span>
+        </div>
+        <canvas id="originalCanvas" class="preview-canvas"></canvas>
+      </div>
+      <div class="preview-card">
+        <div class="preview-header">
+          Ảnh Upscale
+          <span class="badge" id="upscaledSize">-</span>
+        </div>
+        <canvas id="upscaledCanvas" class="preview-canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="controls hidden" id="controls">
+      <div class="control-group">
+        <label class="control-label">Chế độ Upscale</label>
+        <div class="radio-group">
+          <input type="radio" name="mode" id="modeCanvas" value="canvas" checked>
+          <label for="modeCanvas">Canvas (Nhanh)</label>
+          <input type="radio" name="mode" id="modeAI" value="ai">
+          <label for="modeAI">AI Real-ESRGAN</label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Độ phóng đại</label>
+        <div class="radio-group">
+          <input type="radio" name="scale" id="scale2" value="2" checked>
+          <label for="scale2">2×</label>
+          <input type="radio" name="scale" id="scale4" value="4">
+          <label for="scale4">4×</label>
+        </div>
+      </div>
+
+      <div class="control-group" id="qualityGroup">
+        <label class="control-label">Chất lượng Canvas</label>
+        <select id="canvasQuality">
+          <option value="low">Thấp - Nhanh</option>
+          <option value="medium">Trung bình</option>
+          <option value="high" selected>Cao - Mượt</option>
+        </select>
+      </div>
+
+      <div class="control-group hidden" id="aiStatusGroup">
+        <label class="control-label">Trạng thái Model AI</label>
+        <div style="padding: 12px 16px; background: var(--surface-2); border-radius: var(--r-md); font-size: 0.875rem;">
+          <span id="aiStatus">Chưa tải</span>
+        </div>
+        <div id="aiProgress" class="progress-bar hidden">
+          <div class="progress-fill" id="aiProgressFill"></div>
+        </div>
+        <p class="progress-text" id="aiProgressText"></p>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" id="upscaleBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+          Tăng nét ngay
+        </button>
+        <button class="btn btn-success hidden" id="downloadBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Tải ảnh
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      <p>Tạm biệt Gemini Icon · by Aiden Pham</p>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { upscale, estimateUpscaleTime, isAISupported, AIUpscaleModel } from '../src/core/imageUpscaler.js';
+
+    // Real-ESRGAN model URL
+    const MODEL_URL = 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/RealESRGAN_x2plus.onnx';
+
+    // State
+    let originalImage = null;
+    let upscaledBlob = null;
+    let modelBytes = null;
+    let modelLoaded = false;
+
+    // Elements
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const status = document.getElementById('status');
+    const comparison = document.getElementById('comparison');
+    const controls = document.getElementById('controls');
+    const originalCanvas = document.getElementById('originalCanvas');
+    const upscaledCanvas = document.getElementById('upscaledCanvas');
+    const originalSize = document.getElementById('originalSize');
+    const upscaledSize = document.getElementById('upscaledSize');
+    const modeCanvas = document.getElementById('modeCanvas');
+    const modeAI = document.getElementById('modeAI');
+    const scale2 = document.getElementById('scale2');
+    const scale4 = document.getElementById('scale4');
+    const qualityGroup = document.getElementById('qualityGroup');
+    const aiStatusGroup = document.getElementById('aiStatusGroup');
+    const aiStatus = document.getElementById('aiStatus');
+    const aiProgress = document.getElementById('aiProgress');
+    const aiProgressFill = document.getElementById('aiProgressFill');
+    const aiProgressText = document.getElementById('aiProgressText');
+    const canvasQuality = document.getElementById('canvasQuality');
+    const upscaleBtn = document.getElementById('upscaleBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Check AI support
+    if (!isAISupported()) {
+      modeAI.disabled = true;
+      modeAI.parentElement.style.opacity = '0.5';
+    }
+
+    // Event listeners
+    uploadZone.addEventListener('click', () => fileInput.click());
+    
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragging');
+    });
+    
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragging');
+    });
+    
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragging');
+      if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    modeCanvas.addEventListener('change', updateUI);
+    modeAI.addEventListener('change', updateUI);
+    
+    upscaleBtn.addEventListener('click', runUpscale);
+    downloadBtn.addEventListener('click', downloadResult);
+
+    function showStatus(message, type = 'info') {
+      status.textContent = message;
+      status.className = `status ${type}`;
+    }
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        showStatus('Vui lòng chọn file ảnh', 'error');
+        return;
+      }
+
+      originalImage = new Image();
+      originalImage.onload = () => {
+        // Draw to original canvas
+        originalCanvas.width = originalImage.width;
+        originalCanvas.height = originalImage.height;
+        const ctx = originalCanvas.getContext('2d');
+        ctx.drawImage(originalImage, 0, 0);
+
+        originalSize.textContent = `${originalImage.width}×${originalImage.height}`;
+        
+        // Show UI
+        comparison.classList.remove('hidden');
+        controls.classList.remove('hidden');
+        upscaledCanvas.width = originalImage.width;
+        upscaledCanvas.height = originalImage.height;
+        
+        // Reset upscaled
+        const ctx2 = upscaledCanvas.getContext('2d');
+        ctx2.drawImage(originalImage, 0, 0);
+        upscaledSize.textContent = '-';
+        upscaledBlob = null;
+        downloadBtn.classList.add('hidden');
+        
+        showStatus(`Đã load ảnh ${originalImage.width}×${originalImage.height}`, 'success');
+      };
+      originalImage.src = URL.createObjectURL(file);
+    }
+
+    function updateUI() {
+      const isAI = modeAI.checked;
+      qualityGroup.classList.toggle('hidden', isAI);
+      aiStatusGroup.classList.toggle('hidden', !isAI);
+      
+      if (isAI && !modelLoaded) {
+        aiStatus.textContent = 'Chưa tải';
+      } else if (isAI && modelLoaded) {
+        aiStatus.textContent = 'Đã tải ✓';
+      }
+    }
+
+    async function loadModel() {
+      if (modelLoaded) return modelBytes;
+      
+      aiStatus.textContent = 'Đang tải model...';
+      aiProgress.classList.remove('hidden');
+      
+      try {
+        const response = await fetch(MODEL_URL);
+        if (!response.ok) throw new Error('Failed to load model');
+        
+        const contentLength = response.headers.get('content-length');
+        const total = parseInt(contentLength || '0', 10);
+        
+        const reader = response.body.getReader();
+        const chunks = [];
+        let loaded = 0;
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          chunks.push(value);
+          loaded += value.length;
+          
+          if (total > 0) {
+            const percent = Math.round((loaded / total) * 100);
+            aiProgressFill.style.width = `${percent}%`;
+            aiProgressText.textContent = `Đang tải... ${percent}%`;
+          }
+        }
+        
+        const blob = new Blob(chunks);
+        modelBytes = new Uint8Array(await blob.arrayBuffer());
+        modelLoaded = true;
+        
+        aiStatus.textContent = 'Đã tải ✓';
+        aiProgress.classList.add('hidden');
+        
+        return modelBytes;
+      } catch (error) {
+        aiStatus.textContent = 'Lỗi tải!';
+        aiProgress.classList.add('hidden');
+        throw error;
+      }
+    }
+
+    async function runUpscale() {
+      if (!originalImage) {
+        showStatus('Vui lòng chọn ảnh trước', 'error');
+        return;
+      }
+
+      const mode = modeAI.checked ? 'ai' : 'canvas';
+      const scale = scale4.checked ? 4 : 2;
+      const quality = canvasQuality.value;
+
+      upscaleBtn.disabled = true;
+      upscaleBtn.textContent = 'Đang xử lý...';
+
+      try {
+        let result;
+
+        if (mode === 'ai') {
+          const bytes = await loadModel();
+          result = await upscale(originalImage, {
+            mode: 'ai',
+            scale: 2, // Real-ESRGAN x2 model
+            modelType: AIUpscaleModel.REAL_ESRGAN_X2,
+            modelBytes: bytes
+          });
+        } else {
+          result = await upscale(originalImage, {
+            mode: 'canvas',
+            scale: scale,
+            quality: quality
+          });
+        }
+
+        upscaledBlob = result.blob;
+        
+        // Draw result
+        const img = await createImageBitmap(result.blob);
+        upscaledCanvas.width = img.width;
+        upscaledCanvas.height = img.height;
+        const ctx = upscaledCanvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        upscaledSize.textContent = `${img.width}×${img.height}`;
+        downloadBtn.classList.remove('hidden');
+        
+        showStatus(`Upscale thành công: ${img.width}×${img.height}`, 'success');
+      } catch (error) {
+        console.error(error);
+        showStatus(`Lỗi: ${error.message}`, 'error');
+      } finally {
+        upscaleBtn.disabled = false;
+        upscaleBtn.textContent = 'Tăng nét ngay';
+      }
+    }
+
+    function downloadResult() {
+      if (!upscaledBlob) return;
+      
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(upscaledBlob);
+      a.download = `upscaled_${Date.now()}.png`;
+      a.click();
+    }
+  </script>
+</body>
+</html>

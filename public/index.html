@@ -395,6 +395,132 @@
     .btn--success:hover:not(:disabled) { background: #047857; }
 
     /* Loading state */
+    /* Processing Status Panel */
+    .processing-status {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 16px;
+      margin-top: 16px;
+      animation: fadeIn 0.2s var(--ease);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .processing-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    
+    .processing-timer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--ink-2);
+    }
+    
+    .processing-percent {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    
+    .processing-steps {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .processing-step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+      font-size: 0.75rem;
+      color: var(--ink-3);
+      transition: all 0.2s var(--ease);
+      flex: 1;
+      justify-content: center;
+    }
+    
+    .processing-step.active {
+      background: var(--ink);
+      color: #fff;
+    }
+    
+    .processing-step.active .step-icon {
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .processing-step.done {
+      background: var(--success);
+      color: #fff;
+    }
+    
+    .processing-step.waiting {
+      opacity: 0.4;
+    }
+    
+    .processing-step.hidden {
+      display: none;
+    }
+    
+    .step-icon {
+      flex-shrink: 0;
+    }
+    
+    .step-label {
+      white-space: nowrap;
+    }
+    
+    .step-status {
+      font-size: 0.625rem;
+      opacity: 0.7;
+    }
+    
+    .step-connector {
+      width: 12px;
+      height: 2px;
+      background: var(--line);
+      flex-shrink: 0;
+    }
+    
+    .processing-progress {
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: var(--r-full);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    
+    .processing-progress-bar {
+      height: 100%;
+      background: var(--ink);
+      border-radius: var(--r-full);
+      transition: width 0.3s var(--ease);
+      width: 0%;
+    }
+    
+    .processing-message {
+      font-size: 0.8125rem;
+      color: var(--ink-2);
+      text-align: center;
+    }
+
     .btn--loading {
       pointer-events: none;
       opacity: 0.8;
@@ -438,6 +564,288 @@
     @media (min-width: 1024px) {
       .app { padding: 28px; }
       .workspace { grid-template-columns: minmax(0, 1fr) 420px; }
+    }
+
+    /* Upscale Section */
+    .upscale-section {
+      border-top: 1px solid var(--line);
+      margin-top: 8px;
+    }
+    .upscale-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--ink-2);
+      user-select: none;
+      transition: background 0.15s var(--ease);
+    }
+    .upscale-summary:hover {
+      background: var(--surface-2);
+    }
+    .upscale-summary::-webkit-details-marker {
+      display: none;
+    }
+    .upscale-summary::before {
+      content: '';
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 6px solid var(--ink-3);
+      transition: transform 0.2s var(--ease);
+    }
+    details[open] .upscale-summary::before {
+      transform: rotate(90deg);
+    }
+    .upscale-badge {
+      background: var(--ink);
+      color: #fff;
+      font-size: 0.625rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: var(--r-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .upscale-body {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .upscale-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    /* Enable Toggle */
+    .upscale-enable-group {
+      margin-bottom: 4px;
+    }
+    .upscale-enable-group .upscale-mode-toggle label {
+      font-weight: 600;
+    }
+    .upscale-enable-group .upscale-mode-toggle input:checked + label {
+      background: var(--success);
+    }
+
+    /* Upscale Options */
+    .upscale-options {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      animation: slideDown 0.2s var(--ease);
+    }
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Upscale Hint */
+    .upscale-hint {
+      font-size: 0.625rem;
+      font-weight: 400;
+      color: var(--ink-3);
+      margin-left: 4px;
+    }
+    .upscale-mode-toggle input:checked + label .upscale-hint {
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* Upscale Note */
+    .upscale-note {
+      font-size: 0.6875rem;
+      color: var(--ink-3);
+      margin: 8px 0 0;
+      padding: 8px 10px;
+      background: var(--surface-2);
+      border-radius: var(--r-sm);
+      border-left: 2px solid var(--ink-4);
+    }
+
+    /* Mode Toggle */
+    .upscale-mode-toggle {
+      display: flex;
+      gap: 0;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .upscale-mode-toggle input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .upscale-mode-toggle label {
+      flex: 1;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--ink-2);
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: all 0.15s var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .upscale-mode-toggle label:first-child {
+      border-right: 1px solid var(--line);
+    }
+    .upscale-mode-toggle input:checked + label {
+      background: var(--ink);
+      color: #fff;
+    }
+    .upscale-mode-toggle label.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Scale Toggle */
+    .upscale-scale-toggle {
+      display: flex;
+      gap: 0;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .upscale-scale-toggle input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .upscale-scale-toggle label {
+      flex: 1;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--ink-2);
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: all 0.15s var(--ease);
+    }
+    .upscale-scale-toggle label:not(:last-child) {
+      border-right: 1px solid var(--line);
+    }
+    .upscale-scale-toggle input:checked + label {
+      background: var(--ink);
+      color: #fff;
+    }
+    .upscale-scale-toggle label.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+
+    /* Select */
+    .upscale-select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      font-size: 0.8125rem;
+      color: var(--ink);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .upscale-select:focus {
+      outline: none;
+      border-color: var(--ink);
+    }
+
+    /* AI Model Status */
+    .ai-model-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface-2);
+      border-radius: var(--r-md);
+      border: 1px solid var(--line);
+    }
+    .ai-model-label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+    .ai-model-badge {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--r-full);
+      background: var(--ink-3);
+      color: #fff;
+    }
+    .ai-model-badge.loaded {
+      background: var(--success);
+    }
+    .ai-model-badge.loading {
+      background: #d97706;
+    }
+    .ai-model-progress {
+      margin-top: 8px;
+    }
+    .progress-bar {
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: var(--r-full);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--ink);
+      transition: width 0.3s var(--ease);
+    }
+    .progress-text {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.6875rem;
+      color: var(--ink-3);
+    }
+
+    /* Time Estimate */
+    .upscale-time-estimate {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--ink-3);
+      padding: 8px 14px;
+      background: var(--surface-2);
+      border-radius: var(--r-md);
+    }
+    .upscale-time-estimate strong {
+      color: var(--ink);
+      font-weight: 600;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -545,6 +953,144 @@
               Tải về kết quả
             </a>
           </div>
+
+          <!-- Processing Status Panel -->
+          <div id="processingStatus" class="processing-status" hidden>
+            <div class="processing-header">
+              <div class="processing-timer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span id="processingTimer">0:00</span>
+              </div>
+              <span id="processingPercent" class="processing-percent">0%</span>
+            </div>
+            <div class="processing-steps">
+              <div id="stepDetect" class="processing-step" data-step="detect">
+                <div class="step-icon">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <span class="step-label">Soi logo</span>
+                <span class="step-status"></span>
+              </div>
+              <div class="step-connector"></div>
+              <div id="stepRemove" class="processing-step" data-step="remove">
+                <div class="step-icon">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <span class="step-label">Xóa logo</span>
+                <span class="step-status"></span>
+              </div>
+              <div id="stepUpscale" class="processing-step" data-step="upscale">
+                <div class="step-icon">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </div>
+                <span class="step-label">Tăng nét</span>
+                <span class="step-status"></span>
+              </div>
+              <div id="stepComplete" class="processing-step" data-step="complete">
+                <div class="step-icon">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <span class="step-label">Xong!</span>
+                <span class="step-status"></span>
+              </div>
+            </div>
+            <div class="processing-progress">
+              <div id="processingProgressBar" class="processing-progress-bar"></div>
+            </div>
+            <div id="processingMessage" class="processing-message"></div>
+          </div>
+
+          <!-- Upscale Section -->
+          <details id="upscaleSection" class="upscale-section" open>
+            <summary class="upscale-summary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              Tăng nét (Upscale)
+              <span id="upscaleBadge" class="upscale-badge" hidden></span>
+            </summary>
+            <div class="upscale-body">
+              <!-- Enable Toggle -->
+              <div class="upscale-enable-group">
+                <div class="upscale-mode-toggle" role="radiogroup" aria-label="Bật/Tắt upscale">
+                  <input type="radio" name="upscaleEnable" id="upscaleOff" value="off" checked>
+                  <label for="upscaleOff">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Không tăng nét
+                  </label>
+                  <input type="radio" name="upscaleEnable" id="upscaleOn" value="on">
+                  <label for="upscaleOn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    Tăng nét
+                  </label>
+                </div>
+              </div>
+
+              <!-- Upscale Options (shown when enabled) -->
+              <div id="upscaleOptions" class="upscale-options" hidden>
+                <!-- Mode Selection -->
+                <div class="upscale-mode-group">
+                  <label class="upscale-label">Phương pháp</label>
+                  <div class="upscale-mode-toggle" role="radiogroup" aria-label="Phương pháp upscale">
+                    <input type="radio" name="upscaleMode" id="modeCanvas" value="canvas" checked>
+                    <label for="modeCanvas">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                      Canvas
+                      <span class="upscale-hint">Nhanh</span>
+                    </label>
+                    <input type="radio" name="upscaleMode" id="modeAI" value="ai">
+                    <label for="modeAI">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/></svg>
+                      AI (Real-ESRGAN)
+                      <span class="upscale-hint">Chất lượng cao</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Scale Selection -->
+                <div class="upscale-scale-group">
+                  <label class="upscale-label">Độ phóng đại</label>
+                  <div class="upscale-scale-toggle" role="radiogroup" aria-label="Độ phóng đại">
+                    <input type="radio" name="upscaleScale" id="scale2x" value="2" checked>
+                    <label for="scale2x">2×</label>
+                    <input type="radio" name="upscaleScale" id="scale4x" value="4">
+                    <label for="scale4x">4×</label>
+                    <input type="radio" name="upscaleScale" id="scale8x" value="8">
+                    <label for="scale8x" class="disabled" title="Chỉ hỗ trợ Canvas">8×</label>
+                  </div>
+                </div>
+
+                <!-- Canvas Quality (shown when Canvas mode) -->
+                <div id="canvasQualityGroup" class="upscale-quality-group" hidden>
+                  <label class="upscale-label">Chất lượng Canvas</label>
+                  <select id="canvasQuality" class="upscale-select">
+                    <option value="low">Thấp (Nhanh nhất)</option>
+                    <option value="medium">Trung bình</option>
+                    <option value="high" selected>Cao (Mượt nhất)</option>
+                  </select>
+                </div>
+
+                <!-- AI Model Status (shown when AI mode) -->
+                <div id="aiModelGroup" class="upscale-ai-group" hidden>
+                  <div class="ai-model-status">
+                    <span class="ai-model-label">Model Real-ESRGAN</span>
+                    <span id="aiModelStatus" class="ai-model-badge">Chưa tải</span>
+                  </div>
+                  <div id="aiModelProgress" class="ai-model-progress" hidden>
+                    <div class="progress-bar">
+                      <div id="aiModelProgressFill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span id="aiModelProgressText" class="progress-text">Đang tải model...</span>
+                  </div>
+                  <p class="upscale-note">Model AI cần tải về lần đầu (~2MB). Sau đó sẽ dùng cache.</p>
+                </div>
+
+                <!-- Time Estimate -->
+                <div id="upscaleTimeEstimate" class="upscale-time-estimate">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Ước tính: <strong id="upscaleTimeValue">-</strong></span>
+                </div>
+              </div>
+            </div>
+          </details>
 
           <!-- Internal controls (hidden, kept for video-app.js) -->
           <div class="internal-controls" hidden>

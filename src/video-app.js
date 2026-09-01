@@ -30,6 +30,17 @@ import {
 } from './shared/debugFileHandoff.js';
 import { createAllenkFdncnnOnnxRuntime } from './core/allenkFdncnnOnnxRuntime.js';
 
+// Upscaler imports
+import {
+    upscale,
+    estimateUpscaleTime,
+    isAISupported,
+    AIUpscaleModel
+} from './core/imageUpscaler.js';
+
+// Real-ESRGAN model URL for video upscaling
+const REAL_ESRGAN_MODEL_URL = 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/RealESRGAN_x2plus.onnx';
+
 const $ = (id) => document.getElementById(id);
 const ALLENK_FDNCNN_WASM_PATHS = Object.freeze({
     mjs: './onnxruntime/ort-wasm-simd-threaded.js',
@@ -44,11 +55,22 @@ const state = {
     file: null,
     originalUrl: null,
     processedUrl: null,
+    upscaledUrl: null,
     metadata: null,
     detection: null,
     running: false,
     jobId: 0,
-    syncingPlayback: false
+    syncingPlayback: false,
+    // Timer
+    processingStartTime: 0,
+    timerInterval: null,
+    // Upscale state
+    upscaleEnabled: false,
+    upscaleMode: 'canvas',
+    upscaleScale: 2,
+    upscaleQuality: 'high',
+    aiModelLoaded: false,
+    aiModelBytes: null
 };
 
 const allenkFdncnnRuntimePromises = new Map();
@@ -87,12 +109,119 @@ const els = {
     detectBtn: $('detectBtn'),
     downloadBtn: $('downloadBtn'),
     resetBtn: $('resetBtn'),
-    relocatedReviewPresetBtn: $('relocatedReviewPresetBtn')
+    relocatedReviewPresetBtn: $('relocatedReviewPresetBtn'),
+    // Processing Status elements
+    processingStatus: $('processingStatus'),
+    processingTimer: $('processingTimer'),
+    processingPercent: $('processingPercent'),
+    processingProgressBar: $('processingProgressBar'),
+    processingMessage: $('processingMessage'),
+    stepDetect: $('stepDetect'),
+    stepRemove: $('stepRemove'),
+    stepUpscale: $('stepUpscale'),
+    stepComplete: $('stepComplete'),
+    // Upscaler elements
+    upscaleSection: $('upscaleSection'),
+    upscaleBadge: $('upscaleBadge'),
+    upscaleOff: $('upscaleOff'),
+    upscaleOn: $('upscaleOn'),
+    upscaleOptions: $('upscaleOptions'),
+    modeCanvas: $('modeCanvas'),
+    modeAI: $('modeAI'),
+    scale2x: $('scale2x'),
+    scale4x: $('scale4x'),
+    scale8x: $('scale8x'),
+    canvasQualityGroup: $('canvasQualityGroup'),
+    canvasQuality: $('canvasQuality'),
+    aiModelGroup: $('aiModelGroup'),
+    aiModelStatus: $('aiModelStatus'),
+    aiModelProgress: $('aiModelProgress'),
+    aiModelProgressFill: $('aiModelProgressFill'),
+    aiModelProgressText: $('aiModelProgressText'),
+    upscaleTimeEstimate: $('upscaleTimeEstimate'),
+    upscaleTimeValue: $('upscaleTimeValue')
 };
 
 function setStatus(message, tone = 'info') {
     els.status.textContent = message || '';
     els.status.dataset.tone = tone;
+}
+
+// ============================================
+// Processing Status Functions
+// ============================================
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateProcessingTimer() {
+    if (!state.processingStartTime || !els.processingTimer) return;
+    const elapsed = (Date.now() - state.processingStartTime) / 1000;
+    els.processingTimer.textContent = formatTime(elapsed);
+}
+
+function showProcessingStatus() {
+    if (!els.processingStatus) return;
+    els.processingStatus.hidden = false;
+    
+    // Reset all steps
+    els.stepDetect?.classList.remove('done', 'active', 'waiting');
+    els.stepRemove?.classList.remove('done', 'active', 'waiting');
+    els.stepUpscale?.classList.remove('done', 'active', 'waiting');
+    els.stepComplete?.classList.remove('done', 'active', 'waiting');
+    
+    // Start timer
+    state.processingStartTime = Date.now();
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timerInterval = setInterval(updateProcessingTimer, 1000);
+    updateProcessingTimer();
+}
+
+function hideProcessingStatus() {
+    if (!els.processingStatus) return;
+    els.processingStatus.hidden = true;
+    
+    if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+    }
+}
+
+function setStepStatus(step, status, message = '') {
+    const stepEl = step === 'detect' ? els.stepDetect 
+        : step === 'remove' ? els.stepRemove 
+        : step === 'upscale' ? els.stepUpscale 
+        : step === 'complete' ? els.stepComplete : null;
+    
+    if (!stepEl) return;
+    
+    stepEl.classList.remove('done', 'active', 'waiting');
+    stepEl.classList.add(status);
+    
+    const statusEl = stepEl.querySelector('.step-status');
+    if (statusEl) statusEl.textContent = message;
+}
+
+function updateProcessingProgress(progress, message = '') {
+    if (els.processingPercent) {
+        els.processingPercent.textContent = `${Math.round(progress * 100)}%`;
+    }
+    if (els.processingProgressBar) {
+        els.processingProgressBar.style.width = `${progress * 100}%`;
+    }
+    if (els.processingMessage && message) {
+        els.processingMessage.textContent = message;
+    }
+}
+
+function setAllStepsWaiting() {
+    setStepStatus('detect', 'waiting');
+    setStepStatus('remove', 'waiting');
+    setStepStatus('upscale', 'waiting');
+    setStepStatus('complete', 'waiting');
 }
 
 function isLikelyJavascriptMime(contentType) {
@@ -445,8 +574,10 @@ function renderDetection(detection) {
 function cleanupUrls() {
     if (state.originalUrl) URL.revokeObjectURL(state.originalUrl);
     if (state.processedUrl) URL.revokeObjectURL(state.processedUrl);
+    if (state.upscaledUrl) URL.revokeObjectURL(state.upscaledUrl);
     state.originalUrl = null;
     state.processedUrl = null;
+    state.upscaledUrl = null;
 }
 
 async function setFile(file) {
@@ -576,19 +707,24 @@ async function runExport() {
     const jobId = ++state.jobId;
     state.running = true;
     updateButtons();
-    setProgress(0, '▶️ Bắt đầu');
+
+    // Show processing status panel
+    showProcessingStatus();
+    setAllStepsWaiting();
+    setStepStatus('detect', 'active');
+    updateProcessingProgress(0, 'Đang khởi động...');
     setStatus('🛠️ Đang xử lý từng frame ngay tại máy bạn — cứ mở tab là được, không cần chờ nhé!');
 
     try {
         let detectionPayload = state.detection ? { metadata: state.metadata, detection: state.detection } : null;
         if (!detectionPayload) {
-            setProgress(0.04, '🔍 Đang soi');
+            updateProcessingProgress(0.02, '🔍 Đang soi logo...');
             setStatus('🔎 Đang tìm logo cho bạn...');
             await yieldToBrowserFrame();
             const detected = await detectGeminiVideoWatermark(state.file, {
                 ...getDebugAlphaOptions(),
                 sampleCount: Number(els.sampleCount.value) || DEFAULT_SAMPLE_COUNT,
-                onProgress: createDetectionProgressHandler(jobId, { start: 0.04, span: 0.08 }),
+                onProgress: createDetectionProgressHandler(jobId, { start: 0.02, span: 0.08 }),
                 yieldToMainThread: yieldToBrowserFrame
             });
             if (jobId !== state.jobId) return;
@@ -598,9 +734,16 @@ async function runExport() {
             renderDetection(detected.detection);
             detectionPayload = { metadata: detected.metadata, detection: detected.detection };
             applyAutomaticPreset(detected.detection, detected.metadata, { silent: true });
+            updateProcessingProgress(0.10, '✅ Đã tìm thấy logo!');
         } else {
             applyAutomaticPreset(detectionPayload.detection, detectionPayload.metadata, { silent: true });
+            setStepStatus('detect', 'done', 'Đã có');
         }
+        
+        // Mark detect done, start remove
+        setStepStatus('detect', 'done', 'Xong');
+        setStepStatus('remove', 'active');
+        
         applyDebugControlOverrides();
         const denoiseBackend = els.denoiseBackend.value || DEFAULT_DENOISE_BACKEND;
         const allenkFdncnnRuntimeProfile = resolveAllenkFdncnnRuntimeProfile(detectionPayload?.detection?.position);
@@ -614,6 +757,7 @@ async function runExport() {
         const debugAlphaOptions = getDebugAlphaOptions();
         if (jobId !== state.jobId) return;
 
+        const upscaleWeight = state.upscaleEnabled ? 0.75 : 0.95;
         const result = await removeGeminiVideoWatermark(state.file, {
             alphaGain: Number(els.alphaGain.value) || DEFAULT_ALPHA_GAIN,
             adaptiveAlpha: els.adaptiveAlpha.checked,
@@ -636,8 +780,8 @@ async function runExport() {
             onProgress: ({ phase, progress, processedFrames, frameEstimate, metadata, detection, aiDenoiseFrames, aiReuseFrames }) => {
                 if (jobId !== state.jobId) return;
                 const cliProgress = phase === 'detect'
-                    ? progress * 0.12
-                    : 0.12 + progress * 0.88;
+                    ? 0.10 + progress * 0.02
+                    : 0.12 + progress * upscaleWeight;
                 window.__gwrVideoCliProgress = {
                     phase,
                     progress: cliProgress,
@@ -655,12 +799,12 @@ async function runExport() {
                     renderDetection(detection);
                 }
                 if (phase === 'detect') {
-                    setProgress(progress * 0.12, progress >= 1 ? '✅ Xong!' : '🔍 Đang soi');
+                    updateProcessingProgress(cliProgress, '🔍 Đang soi logo...');
                 } else if (phase === 'export') {
-                    const exportProgress = 0.12 + progress * 0.88;
+                    const exportProgress = 0.12 + progress * upscaleWeight;
                     const frames = Number.isFinite(processedFrames) ? `${processedFrames} frame` : 'đang xử lý';
-                    setProgress(exportProgress, `🎬 Đang xuất ${frames}`);
-                    setStatus(`🎥 Xuất video: đã xử lý ${frames}~`);
+                    updateProcessingProgress(exportProgress, `🎬 Đang xóa logo (${frames})...`);
+                    setStatus(`🎥 Xóa logo: đã xử lý ${frames}~`);
                 }
             }
         });
@@ -668,24 +812,89 @@ async function runExport() {
 
         if (state.processedUrl) URL.revokeObjectURL(state.processedUrl);
         state.processedUrl = URL.createObjectURL(result.blob);
-        els.processedVideo.src = state.processedUrl;
-        els.processedVideo.load();
+        
+        const audioNote = result.audioCopied
+            ? `Giữ được tiếng: ${result.audioCodec || 'không rõ'}, ${result.audioPacketCount || 0} gói.`
+            : `Tiếng không giữ: ${result.audioSkipReason || 'không rõ lý do'}.`;
+        const cleanupNote = result.denoiseBackend === VIDEO_DENOISE_BACKENDS.ALLENK_FDNCNN_BROWSER_SPIKE
+            ? 'AI đã xóa sạch logo'
+            : 'Đã xóa logo';
+        
+        // Mark remove done
+        setStepStatus('remove', 'done', 'Xong');
+        
+        // Apply upscaling if enabled
+        if (state.upscaleEnabled) {
+            setStepStatus('upscale', 'active');
+            updateProcessingProgress(0.92, '🔍 Đang tăng nét video...');
+            setStatus('🔍 Đang tăng nét video...');
+            
+            try {
+                // Add overall timeout for upscale (30 minutes max)
+                const upscalePromise = upscaleVideoFile(result.blob, {
+                    mode: state.upscaleMode,
+                    scale: state.upscaleScale,
+                    quality: state.upscaleQuality,
+                    onProgress: (progress) => {
+                        if (jobId !== state.jobId) return;
+                        updateProcessingProgress(0.92 + progress * 0.07, `🔍 Đang tăng nét ${Math.round(progress * 100)}%...`);
+                    }
+                });
+                
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Upscale timeout - exceeded 30 minutes')), 30 * 60 * 1000);
+                });
+                
+                const upscaledResult = await Promise.race([upscalePromise, timeoutPromise]);
+                
+                if (jobId !== state.jobId) return;
+                
+                if (state.upscaledUrl) URL.revokeObjectURL(state.upscaledUrl);
+                state.upscaledUrl = URL.createObjectURL(upscaledResult.blob);
+                
+                // Use upscaled video for display and download
+                els.processedVideo.src = state.upscaledUrl;
+                els.processedVideo.load();
+                els.downloadBtn.href = state.upscaledUrl;
+                els.downloadBtn.download = `${state.file.name.replace(/\.[^.]+$/, '')}_gwr_upscaled.mp4`;
+                
+                const scaleLabel = state.upscaleScale + '×';
+                const modeLabel = state.upscaleMode === 'ai' ? 'AI' : 'Canvas';
+                setStepStatus('upscale', 'done', 'Xong');
+                setStepStatus('complete', 'done', 'Xong');
+                updateProcessingProgress(1, '✨ Hoàn thành!');
+                setStatus(`Hoàn thành! Đã tăng nét ${scaleLabel} (${modeLabel}). ${audioNote}`, 'success');
+            } catch (upscaleError) {
+                console.error('Upscale failed, using original:', upscaleError);
+                setStepStatus('upscale', 'waiting', 'Lỗi');
+                // Fallback to non-upscaled video
+                els.processedVideo.src = state.processedUrl;
+                els.processedVideo.load();
+                els.downloadBtn.href = state.processedUrl;
+                els.downloadBtn.download = `${state.file.name.replace(/\.[^.]+$/, '')}_gwr_video_mvp.mp4`;
+                setStepStatus('complete', 'done', 'Xong');
+                updateProcessingProgress(1, 'Hoàn thành (không tăng nét)');
+                setStatus(`${cleanupNote}, xử lý ${result.processedFrames} frame. ${audioNote}`, 'success');
+            }
+        } else {
+            // No upscaling - skip upscale step
+            els.processedVideo.src = state.processedUrl;
+            els.processedVideo.load();
+            els.downloadBtn.href = state.processedUrl;
+            els.downloadBtn.download = `${state.file.name.replace(/\.[^.]+$/, '')}_gwr_video_mvp.mp4`;
+            setStepStatus('complete', 'done', 'Xong');
+            updateProcessingProgress(1, 'Hoàn thành!');
+            setStatus(`${cleanupNote}, xử lý ${result.processedFrames} frame. ${audioNote}`, 'success');
+        }
+        
         els.processedEmpty.hidden = true;
         updateCompareMode();
         syncProcessedToOriginal({ force: true });
-        els.downloadBtn.href = state.processedUrl;
-        els.downloadBtn.download = `${state.file.name.replace(/\.[^.]+$/, '')}_gwr_video_mvp.mp4`;
-        setProgress(1, '🎉 Xong!');
-        const audioNote = result.audioCopied
-            ? `🎵 Giữ được tiếng: ${result.audioCodec || 'không rõ'}, ${result.audioPacketCount || 0} gói.`
-            : `🔇 Tiếng không giữ: ${result.audioSkipReason || 'không rõ lý do'}.`;
-        const cleanupNote = result.denoiseBackend === VIDEO_DENOISE_BACKENDS.ALLENK_FDNCNN_BROWSER_SPIKE
-            ? '✨ AI đã xóa sạch logo'
-            : '🧹 Đã xóa logo';
-        setStatus(`${cleanupNote}, xử lý ${result.processedFrames} frame. ${audioNote} Tải về bên dưới nha~ 💖`, 'success');
+        updateProcessingProgress(1, '🎉 Xong!');
     } catch (error) {
         console.error(error);
-        setStatus(error.message || '😅 Xuất video thất bại rồi', 'error');
+        setStatus(error.message || 'Xuất video thất bại rồi', 'error');
+        hideProcessingStatus();
     } finally {
         state.running = false;
         updateButtons();
@@ -699,6 +908,7 @@ function reset() {
     state.metadata = null;
     state.detection = null;
     state.running = false;
+    hideProcessingStatus();
     els.fileInput.value = '';
     els.originalVideo.removeAttribute('src');
     els.originalVideo.load();
@@ -798,6 +1008,272 @@ function applyRelocatedReviewPreset() {
     setStatus('🔍 Đã bật preset kiểm tra neo — dùng để review thôi nha, không phải mặc định đâu~', 'warn');
 }
 
+// ============================================
+// Upscaler Functions
+// ============================================
+
+function setupUpscalerEvents() {
+    // Enable toggle
+    els.upscaleOff?.addEventListener('change', () => {
+        state.upscaleEnabled = false;
+        els.upscaleOptions.hidden = true;
+        updateUpscaleBadge();
+        updateUpscalerSteps();
+    });
+    
+    els.upscaleOn?.addEventListener('change', () => {
+        state.upscaleEnabled = true;
+        els.upscaleOptions.hidden = false;
+        updateUpscaleBadge();
+        updateUpscalerSteps();
+    });
+
+    // Mode selection
+    els.modeCanvas?.addEventListener('change', () => {
+        state.upscaleMode = 'canvas';
+        updateUpscalerUI();
+        updateUpscaleTimeEstimate();
+    });
+    
+    els.modeAI?.addEventListener('change', () => {
+        state.upscaleMode = 'ai';
+        updateUpscalerUI();
+        updateUpscaleTimeEstimate();
+    });
+
+    // Scale selection
+    els.scale2x?.addEventListener('change', () => {
+        state.upscaleScale = 2;
+        updateUpscaleTimeEstimate();
+    });
+    
+    els.scale4x?.addEventListener('change', () => {
+        state.upscaleScale = 4;
+        updateUpscaleTimeEstimate();
+    });
+    
+    els.scale8x?.addEventListener('change', () => {
+        state.upscaleScale = 8;
+        updateUpscaleTimeEstimate();
+    });
+
+    // Quality selection
+    els.canvasQuality?.addEventListener('change', () => {
+        state.upscaleQuality = els.canvasQuality.value;
+        updateUpscaleTimeEstimate();
+    });
+
+    // Initial UI state
+    if (els.upscaleOptions) els.upscaleOptions.hidden = !state.upscaleEnabled;
+    updateUpscalerUI();
+    updateUpscalerSteps();
+    updateUpscaleTimeEstimate();
+
+    // Check AI support
+    if (!isAISupported() && els.modeAI) {
+        els.modeAI.disabled = true;
+        els.modeAI.parentElement?.classList.add('disabled');
+    }
+}
+
+function updateUpscalerUI() {
+    // Show/hide canvas quality
+    if (els.canvasQualityGroup) {
+        els.canvasQualityGroup.hidden = state.upscaleMode !== 'canvas';
+    }
+    
+    // Show/hide AI status
+    if (els.aiModelGroup) {
+        els.aiModelGroup.hidden = state.upscaleMode !== 'ai';
+    }
+    
+    // Enable/disable 8x for AI mode
+    if (els.scale8x) {
+        const isAIMode = state.upscaleMode === 'ai';
+        els.scale8x.disabled = isAIMode;
+        const label = els.scale8x.parentElement?.querySelector(`label[for="scale8x"]`);
+        if (label) {
+            label.classList.toggle('disabled', isAIMode);
+        }
+    }
+}
+
+function updateUpscaleTimeEstimate() {
+    if (!els.upscaleTimeValue || !els.upscaleTimeEstimate) return;
+    
+    // Default to HD size for estimation
+    const width = 1920;
+    const height = 1080;
+    
+    const ms = estimateUpscaleTime(width, height, state.upscaleMode, state.upscaleScale);
+    
+    let timeText;
+    if (ms < 1000) {
+        timeText = '<1 giây';
+    } else if (ms < 60000) {
+        timeText = `~${Math.round(ms / 1000)} giây`;
+    } else {
+        timeText = `~${Math.round(ms / 60000)} phút`;
+    }
+    
+    els.upscaleTimeValue.textContent = timeText;
+    els.upscaleTimeEstimate.hidden = false;
+}
+
+function updateUpscaleBadge() {
+    if (!els.upscaleBadge) return;
+    
+    if (!state.upscaleEnabled) {
+        els.upscaleBadge.hidden = true;
+        return;
+    }
+    
+    const scaleLabel = state.upscaleScale + '×';
+    const modeLabel = state.upscaleMode === 'ai' ? 'AI' : 'Canvas';
+    els.upscaleBadge.textContent = `${scaleLabel} ${modeLabel}`;
+    els.upscaleBadge.hidden = false;
+}
+
+function updateUpscalerSteps() {
+    // Show/hide upscale step based on whether upscale is enabled
+    if (els.stepUpscale) {
+        if (state.upscaleEnabled) {
+            els.stepUpscale.classList.remove('hidden');
+            els.stepUpscale.style.display = '';
+        } else {
+            els.stepUpscale.classList.add('hidden');
+            els.stepUpscale.style.display = 'none';
+        }
+    }
+}
+
+async function loadAIModel() {
+    if (state.aiModelLoaded && state.aiModelBytes) {
+        return state.aiModelBytes;
+    }
+
+    if (els.aiModelStatus) {
+        els.aiModelStatus.textContent = 'Đang tải...';
+        els.aiModelStatus.className = 'ai-model-badge loading';
+    }
+    
+    if (els.aiModelProgress) {
+        els.aiModelProgress.hidden = false;
+    }
+
+    try {
+        const response = await fetch(REAL_ESRGAN_MODEL_URL, {
+            headers: { 'Accept': 'application/octet-stream' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to load model: ${response.status}`);
+        }
+
+        const contentLength = response.headers.get('content-length');
+        const total = parseInt(contentLength || '0', 10);
+
+        const reader = response.body.getReader();
+        const chunks = [];
+        let loaded = 0;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            chunks.push(value);
+            loaded += value.length;
+
+            if (total > 0 && els.aiModelProgressFill) {
+                const percent = Math.round((loaded / total) * 100);
+                els.aiModelProgressFill.style.width = `${percent}%`;
+                if (els.aiModelProgressText) {
+                    els.aiModelProgressText.textContent = `Đang tải model... ${percent}%`;
+                }
+            }
+        }
+
+        const blob = new Blob(chunks);
+        state.aiModelBytes = new Uint8Array(await blob.arrayBuffer());
+        state.aiModelLoaded = true;
+
+        if (els.aiModelStatus) {
+            els.aiModelStatus.textContent = 'Sẵn sàng';
+            els.aiModelStatus.className = 'ai-model-badge loaded';
+        }
+        
+        if (els.aiModelProgress) {
+            els.aiModelProgress.hidden = true;
+        }
+
+        return state.aiModelBytes;
+    } catch (error) {
+        console.error('Failed to load AI model:', error);
+        if (els.aiModelStatus) {
+            els.aiModelStatus.textContent = 'Lỗi tải';
+            els.aiModelStatus.className = 'ai-model-badge';
+        }
+        throw error;
+    }
+}
+
+async function upscaleVideoFile(videoBlob, options = {}) {
+    const {
+        mode = 'canvas',
+        scale = 2,
+        quality = 'high',
+        onProgress = () => {}
+    } = options;
+
+    // Get video dimensions first
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    const videoUrl = URL.createObjectURL(videoBlob);
+    video.src = videoUrl;
+
+    await new Promise((resolve, reject) => {
+        video.onloadedmetadata = resolve;
+        video.onerror = reject;
+    });
+
+    const originalWidth = video.videoWidth;
+    const originalHeight = video.videoHeight;
+    const duration = video.duration;
+
+    URL.revokeObjectURL(videoUrl);
+
+    // Use the unified upscale function - it handles video processing internally
+    // videoUpscaler.js uses onProgress(currentFrame, totalFrames)
+    try {
+        const result = await upscale(videoBlob, {
+            mode,
+            scale,
+            quality,
+            onProgress: (currentFrame, totalFrames) => {
+                if (typeof totalFrames === 'number' && totalFrames > 0) {
+                    onProgress(currentFrame / totalFrames);
+                } else if (typeof currentFrame === 'number') {
+                    // Loading model progress
+                    onProgress(currentFrame < 0 ? 0 : currentFrame);
+                }
+            }
+        });
+
+        return {
+            blob: result.blob,
+            width: result.width || originalWidth * scale,
+            height: result.height || originalHeight * scale,
+            duration,
+            originalWidth,
+            originalHeight
+        };
+    } catch (error) {
+        console.error('Upscale failed:', error);
+        throw error;
+    }
+}
+
 function setupEvents() {
     els.dropzone.addEventListener('click', () => els.fileInput.click());
     els.dropzone.addEventListener('keydown', (event) => {
@@ -852,6 +1328,9 @@ function setupEvents() {
     els.scrubber.addEventListener('input', (event) => {
         seekComparison(event.target.value);
     });
+
+    // Upscaler event listeners
+    setupUpscalerEvents();
     els.originalVideo.addEventListener('loadedmetadata', () => {
         updatePlaybackControls();
     });
