@@ -153,7 +153,6 @@ function cleanDistBuildOutputs() {
   }
   for (const entry of [
     'app.js',
-    'dev-preview.html',
     'extension',
     'extension-local',
     'index.html',
@@ -243,7 +242,7 @@ async function serveStaticDevDist(rootDir = 'dist', defaultPort = 4173) {
     // In dev mode, expose the internal single-image debug harness at `/`
     // instead of the public landing entry. The landing page still ships to
     // `dist/index.html` for prod deploys and can be reached at `/index.html`.
-    const devHarnessPath = '/dev-preview.html';
+    const devHarnessPath = '/index.html';
     const requestPath =
       urlPath === '/' || urlPath === ''
         ? devHarnessPath

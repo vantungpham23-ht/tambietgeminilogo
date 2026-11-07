@@ -349,11 +349,119 @@
       color: var(--ink-3);
     }
 
+    /* Batch List Styles */
+    #multiPreview {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .batch-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--line);
+    }
+    .batch-list-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 0 0 4px;
+    }
+    .batch-list-progress {
+      font-size: 0.75rem;
+      color: var(--ink-3);
+      margin: 0;
+    }
+    .batch-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .batch-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .batch-card:last-child {
+      border-bottom: none;
+    }
+    .batch-card.processing {
+      background: var(--surface-1);
+    }
+    .batch-card.completed {
+      background: #f0fdf4;
+    }
+    .batch-card.error {
+      background: #fef2f2;
+    }
+    .batch-thumb {
+      width: 64px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: var(--r-sm);
+      background: var(--line);
+    }
+    .batch-info {
+      min-width: 0;
+    }
+    .batch-name {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .batch-status {
+      font-size: 0.75rem;
+      color: var(--ink-3);
+      margin-top: 2px;
+    }
+    .batch-card.completed .batch-status {
+      color: #16a34a;
+    }
+    .batch-card.error .batch-status {
+      color: #dc2626;
+    }
+    .batch-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .batch-btn {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .batch-btn:hover {
+      background: var(--surface-2);
+    }
+    .batch-btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .batch-btn.primary:hover {
+      background: var(--primary-hover);
+    }
+
     /* Actions */
     .actions {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
+    }
+    .actions:has(#downloadAllBtn:not([style*="display: none"])) {
+      grid-template-columns: 1fr 1fr;
     }
     .btn {
       min-height: 44px;
@@ -939,7 +1047,7 @@
               <span class="format-tag">PNG</span>
               <span class="format-tag">WebP</span>
             </div>
-            <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/*" hidden>
+            <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/*" multiple hidden>
           </div>
 
           <div class="actions">
@@ -952,7 +1060,25 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Tải về kết quả
             </a>
+            <button id="downloadAllBtn" class="btn btn--success" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Tải tất cả
+            </button>
           </div>
+
+          <!-- Batch Preview Section -->
+          <section id="multiPreview" style="display: none;">
+            <div class="batch-list-header">
+              <div>
+                <h3 class="batch-list-title">Danh sách xử lý</h3>
+                <p id="progressText" class="batch-list-progress">Tiến trình: 0/0</p>
+              </div>
+              <button id="batchResetBtn" class="btn btn--secondary" type="button">
+                Đổi file khác
+              </button>
+            </div>
+            <div id="imageList" class="batch-list"></div>
+          </section>
 
           <!-- Processing Status Panel -->
           <div id="processingStatus" class="processing-status" hidden>
@@ -1138,5 +1264,6 @@
   </div>
 
   <script src="video-app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

@@ -55,7 +55,6 @@ let imageQueue = [];
 let processedCount = 0;
 let activeBatchId = 0;
 
-const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileInput');
 const singlePreview = document.getElementById('singlePreview');
 const multiPreview = document.getElementById('multiPreview');
@@ -66,11 +65,18 @@ const processedImage = document.getElementById('processedImage');
 const originalInfo = document.getElementById('originalInfo');
 const processedInfo = document.getElementById('processedInfo');
 const downloadBtn = document.getElementById('downloadBtn');
+const downloadAllBtn = document.getElementById('downloadAllBtn');
 const copyBtn = document.getElementById('copyBtn');
 const resetBtn = document.getElementById('resetBtn');
 const batchResetBtn = document.getElementById('batchResetBtn');
 const processedOverlay = document.getElementById('processedOverlay');
 const sliderHandle = document.getElementById('sliderHandle');
+// Use dropzone for index.html
+const uploadArea = document.getElementById('dropzone') || document.getElementById('uploadArea');
+
+// Null-safe helpers for elements that may not exist in all pages
+const safeQuery = (id) => document.getElementById(id);
+const safeEl = (el) => el; // placeholder for optional chaining
 
 async function getEngine() {
     if (!enginePromise) {
@@ -185,6 +191,7 @@ function setupEventListeners() {
 
     resetBtn.addEventListener('click', reset);
     batchResetBtn.addEventListener('click', reset);
+    downloadAllBtn.addEventListener('click', downloadAll);
     window.addEventListener('beforeunload', () => {
         cleanupBatchItems();
         disableWorkerClient('beforeunload');
@@ -194,20 +201,28 @@ function setupEventListeners() {
 function reset() {
     cleanupCurrentItem();
     cleanupBatchItems();
-    singlePreview.style.display = 'none';
     multiPreview.style.display = 'none';
     fileInput.value = '';
     imageList.innerHTML = '';
     updateProgress();
-    originalImage.src = '';
-    processedImage.src = '';
-    originalInfo.innerHTML = '';
-    processedInfo.innerHTML = '';
-    processedInfo.style.display = 'none';
-    processedOverlay.style.display = 'none';
-    sliderHandle.style.display = 'none';
+    // Reset compare player visibility
+    const comparePlayer = document.getElementById('comparePlayer');
+    const originalVideo = document.getElementById('originalVideo');
+    const processedVideo = document.getElementById('processedVideo');
+    const originalEmpty = document.getElementById('originalEmpty');
+    const processedEmpty = document.getElementById('processedEmpty');
+    const afterBadge = document.getElementById('afterBadge');
+    
+    if (comparePlayer) comparePlayer.style.display = '';
+    if (originalVideo) originalVideo.src = '';
+    if (processedVideo) processedVideo.src = '';
+    if (originalEmpty) originalEmpty.hidden = false;
+    if (processedEmpty) processedEmpty.hidden = false;
+    if (afterBadge) afterBadge.hidden = true;
+    
     copyBtn.style.display = 'none';
     downloadBtn.style.display = 'none';
+    downloadAllBtn.style.display = 'none';
     setStatusMessage('');
     uploadArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -252,6 +267,14 @@ async function handleFiles(files) {
     cleanupBatchItems();
     multiPreview.style.display = 'none';
     imageList.innerHTML = '';
+    
+    // For index.html: hide compare player, load image into originalVideo
+    const comparePlayer = document.getElementById('comparePlayer');
+    const originalVideo = document.getElementById('originalVideo');
+    const originalEmpty = document.getElementById('originalEmpty');
+    
+    if (comparePlayer) comparePlayer.style.display = 'none';
+    
     currentItem = {
         id: Date.now(),
         file: validFile,
@@ -263,7 +286,9 @@ async function handleFiles(files) {
         processedUrl: null
     };
 
-    singlePreview.style.display = 'block';
+    // For dev-preview.html: show singlePreview
+    if (singlePreview) singlePreview.style.display = 'block';
+    
     processSingle(currentItem);
 }
 
@@ -286,7 +311,11 @@ function processBatch(files) {
     cleanupBatchItems();
 
     imageQueue = files.map(createDebugImageItem);
-    singlePreview.style.display = 'none';
+    
+    // Hide compare player, show batch list
+    const comparePlayer = document.getElementById('comparePlayer');
+    if (comparePlayer) comparePlayer.style.display = 'none';
+    
     multiPreview.style.display = 'block';
     imageList.innerHTML = '';
     updateProgress();
@@ -372,18 +401,32 @@ async function processSingle(item) {
         item.originalImg = img;
         item.originalUrl = img.src;
 
-        originalImage.src = img.src;
-        renderSingleImageMeta(item);
+        // For index.html: load image into video player elements
+        const originalVideo = document.getElementById('originalVideo');
+        const originalEmpty = document.getElementById('originalEmpty');
+        const processedVideo = document.getElementById('processedVideo');
+        const processedEmpty = document.getElementById('processedEmpty');
+        const afterBadge = document.getElementById('afterBadge');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        
+        if (originalVideo) {
+            originalVideo.src = img.src;
+            originalVideo.poster = img.src;
+            if (originalEmpty) originalEmpty.hidden = true;
+        }
 
         const processed = await processImageWithBestPath(item.file, img);
         item.processedMeta = processed.meta;
         item.processedBlob = processed.blob;
         item.processedUrl = URL.createObjectURL(processed.blob);
 
-        processedImage.src = item.processedUrl;
-        processedOverlay.style.display = 'block';
-        sliderHandle.style.display = 'flex';
-        processedInfo.style.display = 'block';
+        if (processedVideo) {
+            processedVideo.src = item.processedUrl;
+            if (processedEmpty) processedEmpty.hidden = true;
+            if (afterBadge) afterBadge.hidden = false;
+        }
+
+        if (playPauseBtn) playPauseBtn.disabled = false;
 
         copyBtn.style.display = 'flex';
         copyBtn.onclick = () => copyImage(item);
@@ -391,8 +434,9 @@ async function processSingle(item) {
         downloadBtn.style.display = 'flex';
         downloadBtn.onclick = () => downloadImage(item);
 
-        renderSingleProcessedMeta(item);
-        document.getElementById('comparisonContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Scroll to player
+        const comparePlayer = document.getElementById('comparePlayer');
+        if (comparePlayer) comparePlayer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
         console.error(error);
     }
@@ -403,35 +447,18 @@ function createImageCard(item) {
     card.id = `card-${item.id}`;
     card.className = 'batch-card';
     card.innerHTML = `
-        <div class="batch-comparison">
-            <div class="batch-pane original">
-                <span class="batch-pane-label">Trước</span>
-                <img id="original-${item.id}" class="batch-image" draggable="false" alt="" />
-            </div>
-            <div class="batch-pane processed">
-                <span class="batch-pane-label">Sau</span>
-                <img id="processed-${item.id}" class="batch-image" draggable="false" alt="" />
-            </div>
-        </div>
-        <div class="batch-main">
-            <h4 class="batch-title"></h4>
-            <div class="batch-status" id="status-${item.id}"></div>
+        <img id="original-${item.id}" class="batch-thumb" alt="" />
+        <div class="batch-info">
+            <div class="batch-name" title="${item.name || ''}">${item.name || 'Unnamed'}</div>
+            <div class="batch-status" id="status-${item.id}">Đang chờ...</div>
         </div>
         <div class="batch-actions">
-            <button id="copy-${item.id}" class="batch-button primary" style="display: none;">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m-1 10H8m4-3H8m1.5 6H8"></path></svg>
-                <span>${TEXT.copy}</span>
-            </button>
-            <button id="download-${item.id}" class="batch-button secondary" style="display: none;">
-                Tải kết quả ⬇️
+            <button id="download-${item.id}" class="batch-btn primary" style="display: none;">
+                Tải
             </button>
         </div>
     `;
     imageList.appendChild(card);
-
-    const title = card.querySelector('.batch-title');
-    title.textContent = typeof item.name === 'string' ? item.name : '';
-    title.title = title.textContent;
     renderImageCardStatus(item);
 }
 
@@ -478,7 +505,6 @@ async function processQueue(batchId) {
                 item.originalImg = img;
                 item.originalUrl = img.src;
                 const originalPreview = document.getElementById(`original-${item.id}`);
-                const processedPreview = document.getElementById(`processed-${item.id}`);
                 if (originalPreview) originalPreview.src = img.src;
 
                 item.status = 'processing';
@@ -490,18 +516,11 @@ async function processQueue(batchId) {
                 item.processedMeta = processed.meta;
                 item.processedBlob = processed.blob;
                 item.processedUrl = URL.createObjectURL(processed.blob);
-                if (processedPreview) processedPreview.src = item.processedUrl;
 
                 item.status = 'completed';
                 processedCount++;
                 renderImageCardStatus(item);
                 updateProgress();
-
-                const itemCopyBtn = document.getElementById(`copy-${item.id}`);
-                if (itemCopyBtn) {
-                    itemCopyBtn.style.display = 'inline-flex';
-                    itemCopyBtn.onclick = () => copyImage(item, itemCopyBtn);
-                }
 
                 const itemDownloadBtn = document.getElementById(`download-${item.id}`);
                 if (itemDownloadBtn) {
@@ -515,6 +534,11 @@ async function processQueue(batchId) {
                 console.error(error);
             }
         }));
+    }
+    
+    // Show download all button when all files are processed
+    if (completedCount > 0) {
+        downloadAllBtn.style.display = 'flex';
     }
 }
 
@@ -570,6 +594,25 @@ function downloadImage(item) {
     a.href = item.processedUrl;
     a.download = `unwatermarked_${item.name.replace(/\.[^.]+$/, '')}.png`;
     a.click();
+}
+
+async function downloadAll() {
+    const completedItems = imageQueue.filter(item => item.status === 'completed' && item.processedBlob);
+    if (completedItems.length === 0) {
+        setStatusMessage('Không có file nào đã xử lý xong', 'warn');
+        return;
+    }
+    
+    setStatusMessage(`Đang tải ${completedItems.length} file...`);
+    
+    // Download each file with a small delay to avoid browser blocking
+    for (let i = 0; i < completedItems.length; i++) {
+        const item = completedItems[i];
+        await new Promise(resolve => setTimeout(resolve, 300)); // Small delay between downloads
+        downloadImage(item);
+    }
+    
+    setStatusMessage(`Đã tải ${completedItems.length} file!`);
 }
 
 function setupSlider() {
